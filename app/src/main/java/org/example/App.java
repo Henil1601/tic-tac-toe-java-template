@@ -1,127 +1,123 @@
 package org.example;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Scanner;
 
 public class App {
-    public static String[] board;
-    public static String currentPlayer;
+    public static String[] board = new String[9];
+    public static String currentPlayer = "X";
     public static int xWins = 0;
     public static int oWins = 0;
     public static int ties = 0;
 
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+        Scanner scanner = new Scanner(System.in);
         boolean playAgain = true;
-
-        System.out.println("Welcome to Tic-Tac-Toe!");
+        String loser = "";
 
         while (playAgain) {
-            initializeBoard();
-            boolean gameOn = true;
-            printBoard();
+            resetBoard();
+            currentPlayer = loser.isEmpty() ? "X" : loser;
 
-            while (gameOn) {
-                System.out.print("Player " + currentPlayer + ", enter your move (1-9): ");
-                String input = sc.nextLine().trim();
-
-                if (!input.matches("[1-9]")) {
-                    System.out.println("That is not a valid move! Try again.");
-                    continue;
-                }
-
-                int move = Integer.parseInt(input) - 1;
-
-                if (!board[move].equals(String.valueOf(move + 1))) {
-                    System.out.println("That is not a valid move! Try again.");
-                    continue;
-                }
-
-                board[move] = currentPlayer;
+            boolean gameEnded = false;
+            while (!gameEnded) {
                 printBoard();
+                int move = getPlayerMove(scanner);
+                board[move - 1] = currentPlayer;
 
                 if (checkWin()) {
+                    printBoard();
                     System.out.println("Player " + currentPlayer + " wins!");
                     updateScore(currentPlayer);
-                    gameOn = false;
+                    loser = currentPlayer.equals("X") ? "O" : "X";
+                    gameEnded = true;
                 } else if (isBoardFull()) {
+                    printBoard();
                     System.out.println("It's a tie!");
                     ties++;
-                    gameOn = false;
+                    loser = "";
+                    gameEnded = true;
                 } else {
-                    switchPlayer();
+                    currentPlayer = currentPlayer.equals("X") ? "O" : "X";
                 }
             }
 
             printScore();
 
-            boolean validInput = false;
-            while (!validInput) {
-                System.out.print("Would you like to play again (yes/no)? ");
-                String again = sc.nextLine().trim().toLowerCase();
+            System.out.print("Would you like to play again (yes/no)? ");
+            String answer = scanner.nextLine().trim().toLowerCase();
+            playAgain = answer.equals("yes");
 
-                if (again.equals("yes")) {
-                    validInput = true;
-                    switchPlayer(); // Loser goes first
-                } else if (again.equals("no")) {
-                    System.out.println("Goodbye!");
-                    saveGameLog();
-                    playAgain = false;
-                    validInput = true;
-                } else {
-                    System.out.println("That is not a valid entry!");
-                }
+            if (!playAgain) {
+                writeGameLogToFile();
+                System.out.println("Writing the game log to disk. Please see game.txt for the final statistics!");
+            } else if (!loser.isEmpty()) {
+                System.out.println("Great! This time " + loser + " will go first!");
             }
         }
 
-        sc.close();
+        scanner.close();
     }
 
-    public static void initializeBoard() {
-        board = new String[9];
+    public static void resetBoard() {
         for (int i = 0; i < 9; i++) {
             board[i] = String.valueOf(i + 1);
         }
     }
 
     public static void printBoard() {
-        System.out.println();
-        System.out.println(" " + board[0] + " | " + board[1] + " | " + board[2]);
+        System.out.println("\n " + board[0] + " | " + board[1] + " | " + board[2]);
         System.out.println("---+---+---");
         System.out.println(" " + board[3] + " | " + board[4] + " | " + board[5]);
         System.out.println("---+---+---");
-        System.out.println(" " + board[6] + " | " + board[7] + " | " + board[8]);
-        System.out.println();
+        System.out.println(" " + board[6] + " | " + board[7] + " | " + board[8] + "\n");
+    }
+
+    public static int getPlayerMove(Scanner scanner) {
+        int move;
+        while (true) {
+            System.out.print("What is your move? ");
+            String input = scanner.nextLine();
+            try {
+                move = Integer.parseInt(input);
+                if (move < 1 || move > 9 || !board[move - 1].equals(String.valueOf(move))) {
+                    System.out.println("Invalid move. Try again.");
+                } else {
+                    break;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number between 1 and 9.");
+            }
+        }
+        return move;
     }
 
     public static boolean checkWin() {
-        int[][] winPatterns = {
-            {0, 1, 2}, {3, 4, 5}, {6, 7, 8}, // rows
-            {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, // columns
-            {0, 4, 8}, {2, 4, 6}             // diagonals
+        String[][] winConditions = {
+            {board[0], board[1], board[2]},
+            {board[3], board[4], board[5]},
+            {board[6], board[7], board[8]},
+            {board[0], board[3], board[6]},
+            {board[1], board[4], board[7]},
+            {board[2], board[5], board[8]},
+            {board[0], board[4], board[8]},
+            {board[2], board[4], board[6]}
         };
 
-        for (int[] pattern : winPatterns) {
-            if (board[pattern[0]].equals(currentPlayer) &&
-                board[pattern[1]].equals(currentPlayer) &&
-                board[pattern[2]].equals(currentPlayer)) {
+        for (String[] line : winConditions) {
+            if (line[0].equals(line[1]) && line[1].equals(line[2])) {
                 return true;
             }
         }
-
         return false;
     }
 
     public static boolean isBoardFull() {
-        for (String cell : board) {
-            if (!cell.equals("X") && !cell.equals("O")) {
-                return false;
-            }
+        for (String s : board) {
+            if (s.matches("[1-9]")) return false;
         }
         return true;
-    }
-
-    public static void switchPlayer() {
-        currentPlayer = (currentPlayer.equals("X")) ? "O" : "X";
     }
 
     public static void updateScore(String winner) {
@@ -133,28 +129,21 @@ public class App {
     }
 
     public static void printScore() {
-        System.out.println("The current log is:");
-        System.out.println("Player X Wins: " + xWins);
-        System.out.println("Player O Wins: " + oWins);
-        System.out.println("Ties: " + ties);
-        System.out.println();
+        System.out.println("\nThe current log is:");
+        System.out.println("Player X Wins   " + xWins);
+        System.out.println("Player O Wins   " + oWins);
+        System.out.println("Ties            " + ties);
     }
 
-    public static void saveGameLog() {
+    public static void writeGameLogToFile() {
         try {
-            java.io.PrintWriter writer = new java.io.PrintWriter("game.txt");
-            writer.println("Final Game Log:");
-            writer.println("Player X Wins: " + xWins);
-            writer.println("Player O Wins: " + oWins);
-            writer.println("Ties: " + ties);
+            FileWriter writer = new FileWriter("game.txt");
+            writer.write("Player X Wins   " + xWins + "\n");
+            writer.write("Player O Wins   " + oWins + "\n");
+            writer.write("Ties            " + ties + "\n");
             writer.close();
-            System.out.println("Game log saved to game.txt");
-        } catch (Exception e) {
-            System.out.println("Error saving game log.");
+        } catch (IOException e) {
+            System.out.println("An error occurred while writing the log.");
         }
-    }
-
-    static {
-        currentPlayer = "X"; // Default starting player
     }
 }
